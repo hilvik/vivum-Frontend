@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+.theme-light {
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8fafc;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #334155;
+  --color-border: #e2e8f0;
+  --color-accent: #0ea5e9;
+  --color-accent-hover: #0284c7;
+  --color-accent-gradient-from: #0ea5e9;
+  --color-accent-gradient-to: #2dd4bf;
+}
+
+.theme-dark {
+  --color-bg-primary: #000000;
+  --color-bg-secondary: #0f172a;
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #94a3b8;
+  --color-border: #1e293b;
+  --color-accent: #38bdf8;
+  --color-accent-hover: #0ea5e9;
+  --color-accent-gradient-from: #38bdf8;
+  --color-accent-gradient-to: #22d3ee;
+}
+
+.coming-soon-gradient {
+  background: linear-gradient(135deg, 
+    rgba(147, 51, 234, 0.15) 0%,
+    rgba(79, 70, 229, 0.15) 50%,
+    rgba(236, 72, 153, 0.15) 100%
+  );
+  backdrop-filter: blur(20px);
+}
+
+.text-glow {
+  text-shadow: 0 0 20px rgba(147, 51, 234, 0.5);
+}
+
+.gradient-border {
+  position: relative;
+  border-radius: 1rem;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 1.1rem;
+  padding: 2px;
+  background: linear-gradient(
+    135deg,
+    rgba(147, 51, 234, 0.5),
+    rgba(79, 70, 229, 0.5),
+    rgba(236, 72, 153, 0.5)
+  );
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-purple-500/30 rounded-full hover:bg-purple-500/50 transition-colors;
+}
+
+/* Smooth transitions */
+.theme-transition {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Typography improvements */
+.prose {
+  @apply max-w-none;
+}
+
+.prose h1 {
+  @apply text-3xl font-semibold tracking-tight;
+}
+
+.prose h2 {
+  @apply text-2xl font-semibold tracking-tight;
+}
+
+.prose p {
+  @apply leading-relaxed;
+}
+
+.prose a {
+  @apply font-medium underline-offset-2 decoration-2;
+}
+
+.prose strong {
+  @apply font-semibold;
+}
+
+.prose ul {
+  @apply space-y-2;
+}
+
+.prose li {
+  @apply leading-relaxed;
+}

@@ -208,7 +208,7 @@ function HomePage({ isDarkMode, setIsDarkMode }) {
                   WebkitTextFillColor: "transparent",
                 }}
               >
-                Six hours of research, solved in six minutes
+                Six hours of research, solved in six minutes 
                 <br className="hidden sm:block" />
                 with real-time, citation-anchored AI
               </motion.p>

@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ChevronDown, Globe, Settings, LogOut, MessageSquare, ChevronLeft, Search, Clock, Trash2, Menu, CheckCircle2 } from 'lucide-react';
+import { Send, ChevronDown, Globe, Settings, LogOut, MessageSquare, ChevronLeft, Search, Clock, Trash2, Menu, CheckCircle2, User, Building2, MapPin, Pencil, X, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { TypewriterMessage } from '../components/TypewriterMessage';
 import { checkApiHealth } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
 interface ChatMessage {
@@ -18,6 +19,13 @@ interface ChatInterfaceProps {
   setIsDarkMode: (isDark: boolean) => void;
 }
 
+interface UserProfile {
+  full_name: string;
+  email: string;
+  institute: string;
+  country: string;
+}
+
 export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -27,7 +35,15 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
   const [isSearching, setIsSearching] = useState(false);
   const [isApiHealthy, setIsApiHealthy] = useState(false);
   const [isCheckingHealth, setIsCheckingHealth] = useState(true);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedProfile, setEditedProfile] = useState({
+    institute: '',
+    country: ''
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   const sources = [
@@ -43,6 +59,43 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          navigate('/');
+          return;
+        }
+
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('full_name, email, institute, country')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+        setUserProfile(profile);
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        toast.error('Failed to load user profile');
+      }
+    };
+
+    fetchUserProfile();
+  }, [navigate]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const checkHealth = async () => {
@@ -116,8 +169,64 @@ What would you like to explore today?`,
     });
   };
 
-  const handleLogout = () => {
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      navigate('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast.error('Failed to sign out');
+    }
+  };
+
+  const handleEditClick = () => {
+    setEditedProfile({
+      institute: userProfile?.institute || '',
+      country: userProfile?.country || ''
+    });
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditedProfile({
+      institute: userProfile?.institute || '',
+      country: userProfile?.country || ''
+    });
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('User not authenticated');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          institute: editedProfile.institute,
+          country: editedProfile.country,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setUserProfile(prev => ({
+        ...prev!,
+        institute: editedProfile.institute,
+        country: editedProfile.country
+      }));
+
+      setIsEditing(false);
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error('Failed to update profile');
+    }
   };
 
   return (
@@ -199,16 +308,184 @@ What would you like to explore today?`,
             {setIsDarkMode && (
               <ThemeToggle isDarkMode={isDarkMode} onToggle={() => setIsDarkMode(!isDarkMode)} />
             )}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleLogout}
-              className={`p-2 rounded-lg ${
-                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-              }`}
-            >
-              <LogOut className="w-5 h-5" />
-            </motion.button>
+            
+            {/* Profile Section */}
+            <div className="relative" ref={profileRef}>
+              <motion.button
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className={`p-2 rounded-lg ${
+                  isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                }`}
+              >
+                <User className="w-5 h-5" />
+              </motion.button>
+
+              <AnimatePresence>
+                {isProfileOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className={`absolute right-0 mt-2 w-72 rounded-xl shadow-lg ${
+                      isDarkMode ? 'bg-gray-800' : 'bg-white'
+                    } border ${
+                      isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                    } overflow-hidden z-50`}
+                  >
+                    <div className="p-4">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className={`p-2 rounded-lg ${
+                          isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                        }`}>
+                          <User className={`w-6 h-6 ${
+                            isDarkMode ? 'text-purple-400' : 'text-purple-600'
+                          }`} />
+                        </div>
+                        <div>
+                          <h3 className={`font-medium ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            {userProfile?.full_name || 'Loading...'}
+                          </h3>
+                          <p className={`text-sm ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
+                            {userProfile?.email || 'Loading...'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className={`space-y-3 mb-4 p-3 rounded-lg ${
+                        isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'
+                      }`}>
+                        {isEditing ? (
+                          <div className="space-y-3">
+                            <div>
+                              <label className={`block text-sm font-medium mb-1 ${
+                                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>
+                                Institute
+                              </label>
+                              <input
+                                type="text"
+                                value={editedProfile.institute}
+                                onChange={(e) => setEditedProfile(prev => ({
+                                  ...prev,
+                                  institute: e.target.value
+                                }))}
+                                className={`w-full px-3 py-1.5 rounded-lg text-sm ${
+                                  isDarkMode 
+                                    ? 'bg-gray-800 text-white border-gray-600' 
+                                    : 'bg-white text-gray-900 border-gray-300'
+                                } border focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                                placeholder="Enter your institute"
+                              />
+                            </div>
+                            <div>
+                              <label className={`block text-sm font-medium mb-1 ${
+                                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>
+                                Country
+                              </label>
+                              <input
+                                type="text"
+                                value={editedProfile.country}
+                                onChange={(e) => setEditedProfile(prev => ({
+                                  ...prev,
+                                  country: e.target.value
+                                }))}
+                                className={`w-full px-3 py-1.5 rounded-lg text-sm ${
+                                  isDarkMode 
+                                    ? 'bg-gray-800 text-white border-gray-600' 
+                                    : 'bg-white text-gray-900 border-gray-300'
+                                } border focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                                placeholder="Enter your country"
+                              />
+                            </div>
+                            <div className="flex space-x-2 pt-2">
+                              <button
+                                onClick={handleSaveProfile}
+                                className={`flex-1 flex items-center justify-center space-x-2 px-3 py-1.5 rounded-lg text-sm ${
+                                  isDarkMode 
+                                    ? 'bg-purple-600 hover:bg-purple-700 text-white' 
+                                    : 'bg-purple-600 hover:bg-purple-700 text-white'
+                                }`}
+                              >
+                                <Save className="w-4 h-4" />
+                                <span>Save</span>
+                              </button>
+                              <button
+                                onClick={handleCancelEdit}
+                                className={`flex-1 flex items-center justify-center space-x-2 px-3 py-1.5 rounded-lg text-sm ${
+                                  isDarkMode 
+                                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                                }`}
+                              >
+                                <X className="w-4 h-4" />
+                                <span>Cancel</span>
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <Building2 className={`w-4 h-4 ${
+                                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                                }`} />
+                                <span className={`text-sm ${
+                                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                                }`}>
+                                  {userProfile?.institute || 'No institute set'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <MapPin className={`w-4 h-4 ${
+                                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                                }`} />
+                                <span className={`text-sm ${
+                                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                                }`}>
+                                  {userProfile?.country || 'No country set'}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={handleEditClick}
+                              className={`w-full flex items-center justify-center space-x-2 p-1.5 rounded-lg text-sm ${
+                                isDarkMode 
+                                  ? 'bg-gray-600/50 hover:bg-gray-600 text-gray-300' 
+                                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                              }`}
+                            >
+                              <Pencil className="w-4 h-4" />
+                              <span>Edit Profile</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={handleLogout}
+                        className={`w-full flex items-center justify-center space-x-2 p-2 rounded-lg ${
+                          isDarkMode 
+                            ? 'bg-red-900/20 text-red-400 hover:bg-red-900/30' 
+                            : 'bg-red-50 text-red-600 hover:bg-red-100'
+                        } transition-colors`}
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
 

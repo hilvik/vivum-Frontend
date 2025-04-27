@@ -53,6 +53,9 @@ export function ActivationPage({ isDarkMode }: ActivationPageProps) {
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [isSendingReset, setIsSendingReset] = useState(false);
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -72,7 +75,7 @@ export function ActivationPage({ isDarkMode }: ActivationPageProps) {
   const [countryQuery, setCountryQuery] = useState('');
   const [activationCodeData, setActivationCodeData] = useState<any>(null);
   const [lastSignupAttempt, setLastSignupAttempt] = useState(0);
-  const SIGNUP_COOLDOWN = 36000; // 36 seconds in milliseconds
+  const SIGNUP_COOLDOWN = 36000;
 
   const filteredCountries = countryQuery === ''
     ? COUNTRIES
@@ -121,7 +124,6 @@ export function ActivationPage({ isDarkMode }: ActivationPageProps) {
     setVerifyingCode(true);
 
     try {
-      // Check if activation code exists and hasn't been used
       const { data: waitlistData, error: waitlistError } = await supabase
         .from('waitlist')
         .select('*')
@@ -137,12 +139,11 @@ export function ActivationPage({ isDarkMode }: ActivationPageProps) {
         throw waitlistError;
       }
 
-      // Check if the activation code has already been used
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('id')
         .eq('activation_code', invitationCode)
-        .maybeSingle(); // Use maybeSingle instead of single to handle no rows gracefully
+        .maybeSingle();
 
       if (profileError && profileError.code !== 'PGRST116') {
         throw profileError;
@@ -159,7 +160,6 @@ export function ActivationPage({ isDarkMode }: ActivationPageProps) {
         setHasValidCode(true);
         setShowAuthForm(true);
         setIsSignUp(true);
-        // Pre-fill the form with data from waitlist
         setFormData(prev => ({
           ...prev,
           name: waitlistData.Name || '',
@@ -200,7 +200,6 @@ export function ActivationPage({ isDarkMode }: ActivationPageProps) {
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Check rate limiting for signup
     if (isSignUp) {
       const now = Date.now();
       const timeSinceLastAttempt = now - lastSignupAttempt;
@@ -228,7 +227,6 @@ export function ActivationPage({ isDarkMode }: ActivationPageProps) {
 
         setLastSignupAttempt(Date.now());
 
-        // Sign up with Supabase
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
@@ -295,6 +293,27 @@ export function ActivationPage({ isDarkMode }: ActivationPageProps) {
 
   const handleJoinWaitlist = () => {
     navigate('/waitlist');
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSendingReset(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) throw error;
+
+      toast.success('Password reset instructions sent to your email');
+      setShowForgotPassword(false);
+      setForgotPasswordEmail('');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send reset instructions');
+    } finally {
+      setIsSendingReset(false);
+    }
   };
 
   return (
@@ -436,236 +455,251 @@ export function ActivationPage({ isDarkMode }: ActivationPageProps) {
             </div>
 
             <form onSubmit={handleAuthSubmit} className="space-y-6">
-              <div className="space-y-4">
-                {isSignUp && hasValidCode && (
-                  <>
-                    <div>
-                      <label htmlFor="name" className={`block text-sm font-medium ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
-                        Full Name
-                      </label>
-                      <div className="mt-1 relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <User className={`h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-                        </div>
-                        <input
-                          id="name"
-                          name="name"
-                          type="text"
-                          required
-                          value={formData.name}
-                          onChange={handleInputChange}
-                          className={`w-full pl-10 pr-4 py-3 ${
-                            isDarkMode 
-                              ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' 
-                              : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
-                          } border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
-                          placeholder="Enter your full name"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label htmlFor="institute" className={`block text-sm font-medium ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
-                        Institute/Organization
-                      </label>
-                      <div className="mt-1 relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Building2 className={`h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-                        </div>
-                        <input
-                          id="institute"
-                          name="institute"
-                          type="text"
-                          required
-                          value={formData.institute}
-                          onChange={handleInputChange}
-                          className={`w-full pl-10 pr-4 py-3 ${
-                            isDarkMode 
-                              ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' 
-                              : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
-                          } border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
-                          placeholder="Enter your institute/organization"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label htmlFor="country" className={`block text-sm font-medium ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
-                        Country/Region
-                      </label>
-                      <div className="mt-1 relative">
-                        <Combobox value={formData.country} onChange={(value) => setFormData(prev => ({ ...prev, country: value }))}>
-                          <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <Globe2 className={`h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-                            </div>
-                            <Combobox.Input
-                              className={`w-full pl-10 pr-4 py-3 ${
-                                isDarkMode 
-                                  ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' 
-                                  : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
-                              } border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
-                              displayValue={(country: string) => country}
-                              onChange={(event) => setCountryQuery(event.target.value)}
-                              placeholder="Search for your country..."
-                            />
-                          </div>
-                          <Combobox.Options className={`absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm ${
-                            isDarkMode 
-                              ? 'bg-gray-800 border-gray-700' 
-                              : 'bg-white border-gray-200'
-                          }`}>
-                            {filteredCountries.length === 0 && countryQuery !== '' ? (
-                              <div className={`relative cursor-default select-none py-2 px-4 ${
-                                isDarkMode ? 'text-gray-400' : 'text-gray-700'
-                              }`}>
-                                No countries found.
-                              </div>
-                            ) : (
-                              filteredCountries.map((country) => (
-                                <Combobox.Option
-                                  key={country}
-                                  value={country}
-                                  className={({ active }) =>
-                                    `relative cursor-default select-none py-2 pl-10 pr-4 ${
-                                      active
-                                        ? isDarkMode 
-                                          ? 'bg-purple-600 text-white'
-                                          : 'bg-purple-100 text-purple-900'
-                                        : isDarkMode
-                                          ? 'text-gray-300'
-                                          : 'text-gray-900'
-                                    }`
-                                  }
-                                >
-                                  {({ selected, active }) => (
-                                    <>
-                                      <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                                        {country}
-                                      </span>
-                                      {selected ? (
-                                        <span className={`absolute inset-y-0 left-0 flex items-center pl-3 ${
-                                          active 
-                                            ? isDarkMode 
-                                              ? 'text-white' 
-                                              : 'text-purple-600'
-                                            : 'text-purple-600'
-                                        }`}>
-                                          <Check className="h-5 w-5" aria-hidden="true" />
-                                        </span>
-                                      ) : null}
-                                    </>
-                                  )}
-                                </Combobox.Option>
-                              ))
-                            )}
-                          </Combobox.Options>
-                        </Combobox>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                <div>
-                  <label htmlFor="email" className={`block text-sm font-medium ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    Email address
-                  </label>
-                  <div className="mt-1 relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Mail className={`h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-                    </div>
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      required
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      className={`w-full pl-10 pr-4 py-3 ${
-                        isDarkMode 
-                          ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' 
-                          : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
-                      } border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
-                      placeholder="Enter your email"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="password" className={`block text-sm font-medium ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    Password
-                  </label>
-                  <div className="mt-1 relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock className={`h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-                    </div>
-                    <input
-                      id="password"
-                      name="password"
-                      type="password"
-                      required
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      className={`w-full pl-10 pr-4 py-3 ${
-                        isDarkMode 
-                          ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' 
-                          : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
-                      } border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
-                      placeholder="Enter your password"
-                    />
-                  </div>
-                  {isSignUp && passwordStrength.errors.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Password must contain:
-                      </p>
-                      {passwordStrength.errors.map((error, index) => (
-                        <div key={index} className="flex items-center space-x-2">
-                          <AlertCircle className="w-4 h-4 text-red-500" />
-                          <span className="text-sm text-red-500">{error}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {isSignUp && hasValidCode && (
+              {isSignUp && hasValidCode && (
+                <>
                   <div>
-                    <label htmlFor="confirmPassword" className={`block text-sm font-medium ${
+                    <label htmlFor="name" className={`block text-sm font-medium ${
                       isDarkMode ? 'text-gray-300' : 'text-gray-700'
                     }`}>
-                      Confirm Password
+                      Full Name
                     </label>
                     <div className="mt-1 relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Lock className={`h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                        <User className={`h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
                       </div>
                       <input
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        type="password"
+                        id="name"
+                        name="name"
+                        type="text"
                         required
-                        value={formData.confirmPassword}
+                        value={formData.name}
                         onChange={handleInputChange}
                         className={`w-full pl-10 pr-4 py-3 ${
                           isDarkMode 
                             ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' 
                             : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
                         } border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
-                        placeholder="Confirm your password"
+                        placeholder="Enter your full name"
                       />
                     </div>
                   </div>
+
+                  <div>
+                    <label htmlFor="institute" className={`block text-sm font-medium ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      Institute/Organization
+                    </label>
+                    <div className="mt-1 relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Building2 className={`h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                      </div>
+                      <input
+                        id="institute"
+                        name="institute"
+                        type="text"
+                        required
+                        value={formData.institute}
+                        onChange={handleInputChange}
+                        className={`w-full pl-10 pr-4 py-3 ${
+                          isDarkMode 
+                            ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' 
+                            : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
+                        } border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                        placeholder="Enter your institute/organization"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="country" className={`block text-sm font-medium ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      Country/Region
+                    </label>
+                    <div className="mt-1 relative">
+                      <Combobox value={formData.country} onChange={(value) => setFormData(prev => ({ ...prev, country: value }))}>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Globe2 className={`h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                          </div>
+                          <Combobox.Input
+                            className={`w-full pl-10 pr-4 py-3 ${
+                              isDarkMode 
+                                ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' 
+                                : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
+                            } border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                            displayValue={(country: string) => country}
+                            onChange={(event) => setCountryQuery(event.target.value)}
+                            placeholder="Search for your country..."
+                          />
+                        </div>
+                        <Combobox.Options className={`absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm ${
+                          isDarkMode 
+                            ? 'bg-gray-800 border-gray-700' 
+                            : 'bg-white border-gray-200'
+                        }`}>
+                          {filteredCountries.length === 0 && countryQuery !== '' ? (
+                            <div className={`relative cursor-default select-none py-2 px-4 ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-700'
+                            }`}>
+                              No countries found.
+                            </div>
+                          ) : (
+                            filteredCountries.map((country) => (
+                              <Combobox.Option
+                                key={country}
+                                value={country}
+                                className={({ active }) =>
+                                  `relative cursor-default select-none py-2 pl-10 pr-4 ${
+                                    active
+                                      ? isDarkMode 
+                                        ? 'bg-purple-600 text-white'
+                                        : 'bg-purple-100 text-purple-900'
+                                      : isDarkMode
+                                        ? 'text-gray-300'
+                                        : 'text-gray-900'
+                                  }`
+                                }
+                              >
+                                {({ selected, active }) => (
+                                  <>
+                                    <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                                      {country}
+                                    </span>
+                                    {selected ? (
+                                      <span className={`absolute inset-y-0 left-0 flex items-center pl-3 ${
+                                        active 
+                                          ? isDarkMode 
+                                            ? 'text-white' 
+                                            : 'text-purple-600'
+                                          : 'text-purple-600'
+                                      }`}>
+                                        <Check className="h-5 w-5" aria-hidden="true" />
+                                      </span>
+                                    ) : null}
+                                  </>
+                                )}
+                              </Combobox.Option>
+                            ))
+                          )}
+                        </Combobox.Options>
+                      </Combobox>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label htmlFor="email" className={`block text-sm font-medium ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Email address
+                </label>
+                <div className="mt-1 relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className={`h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                  </div>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className={`w-full pl-10 pr-4 py-3 ${
+                      isDarkMode 
+                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' 
+                        : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
+                    } border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                    placeholder="Enter your email"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="password" className={`block text-sm font-medium ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Password
+                </label>
+                <div className="mt-1 relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className={`h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                  </div>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    required
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className={`w-full pl-10 pr-4 py-3 ${
+                      isDarkMode 
+                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' 
+                        : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
+                    } border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                    placeholder="Enter your password"
+                  />
+                </div>
+                {isSignUp && passwordStrength.errors.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Password must contain:
+                    </p>
+                    {passwordStrength.errors.map((error, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <AlertCircle className="w-4 h-4 text-red-500" />
+                        <span className="text-sm text-red-500">{error}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {isSignUp && hasValidCode && (
+                <div>
+                  <label htmlFor="confirmPassword" className={`block text-sm font-medium ${
+                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Confirm Password
+                  </label>
+                  <div className="mt-1 relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className={`h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                    </div>
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type="password"
+                      required
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      className={`w-full pl-10 pr-4 py-3 ${
+                        isDarkMode 
+                          ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' 
+                          : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
+                      } border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                      placeholder="Confirm your password"
+                    />
+                  </div>
+                
+                </div>
+              )}
+
+              <div className="flex justify-between items-center">
+                <div className="flex items-center">
+                </div>
+                {!isSignUp && (
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className={`text-sm font-medium ${
+                      isDarkMode ? 'text-purple-400 hover:text-purple-300' : 'text-purple-600 hover:text-purple-500'
+                    }`}
+                  >
+                    Forgot password?
+                  </button>
                 )}
               </div>
 
@@ -898,6 +932,112 @@ export function ActivationPage({ isDarkMode }: ActivationPageProps) {
                       Close
                     </motion.button>
                   </div>
+                </motion.div>
+              </div>
+            </Dialog>
+          )}
+
+          {showForgotPassword && (
+            <Dialog
+              as={motion.div}
+              static
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              open={showForgotPassword}
+              onClose={() => setShowForgotPassword(false)}
+              className="fixed inset-0 z-50 overflow-y-auto"
+            >
+              <div className="fixed inset-0">
+                <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+              </div>
+              
+              <div className="fixed inset-0 flex items-center justify-center p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className={`w-full max-w-md p-6 overflow-hidden rounded-2xl shadow-xl ${
+                    isDarkMode ? 'bg-gray-900' : 'bg-white'
+                  } relative`}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <Dialog.Title as="h3" className={`text-xl font-semibold ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>
+                      Reset Password
+                    </Dialog.Title>
+                    <button
+                      onClick={() => setShowForgotPassword(false)}
+                      className={`rounded-full p-2 ${
+                        isDarkMode 
+                          ? 'hover:bg-gray-800 text-gray-400 hover:text-gray-300' 
+                          : 'hover:bg-gray-100 text-gray-500 hover:text-gray-600'
+                      }`}
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Enter your email address and we'll send you instructions to reset your password.
+                  </p>
+
+                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                    <div>
+                      <label htmlFor="reset-email" className={`block text-sm font-medium ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
+                        Email address
+                      </label>
+                      <div className="mt-1 relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <Mail className={`h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                        </div>
+                        <input
+                          id="reset-email"
+                          type="email"
+                          required
+                          value={forgotPasswordEmail}
+                          onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                          className={`w-full pl-10 pr-4 py-3 ${
+                            isDarkMode 
+                              ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' 
+                              : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
+                          } border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                          placeholder="Enter your email"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex space-x-3">
+                      <motion.button
+                        type="submit"
+                        disabled={isSendingReset}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`flex-1 flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 ${
+                          isSendingReset ? 'opacity-70 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {isSendingReset ? 'Sending...' : 'Send Reset Instructions'}
+                      </motion.button>
+
+                      <motion.button
+                        type="button"
+                        onClick={() => setShowForgotPassword(false)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`px-4 py-3 rounded-xl ${
+                          isDarkMode 
+                            ? 'bg-gray-800 text-white hover:bg-gray-700' 
+                            : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                        }`}
+                      >
+                        Cancel
+                      </motion.button>
+                    </div>
+                  </form>
                 </motion.div>
               </div>
             </Dialog>

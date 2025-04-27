@@ -1,0 +1,1 @@
+export { ActivationPage } from '../components/ActivationPage';

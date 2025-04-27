@@ -2,11 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ChevronDown, Globe, Settings, LogOut, MessageSquare, ChevronLeft, Search, Clock, Trash2, Menu, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { ThemeToggle } from './ThemeToggle';
-import { TypewriterMessage } from './TypewriterMessage';
+import { ThemeToggle } from '../components/ThemeToggle';
+import { TypewriterMessage } from '../components/TypewriterMessage';
 import { checkApiHealth } from '../lib/api';
 import toast from 'react-hot-toast';
 
@@ -18,7 +15,7 @@ interface ChatMessage {
 
 interface ChatInterfaceProps {
   isDarkMode: boolean;
-  setIsDarkMode?: (isDark: boolean) => void;
+  setIsDarkMode: (isDark: boolean) => void;
 }
 
 export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps) {

@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ChevronDown, Globe, Settings, LogOut, MessageSquare, ChevronLeft, Search, Clock, Trash2, Menu, CheckCircle2, User, Building2, MapPin, Pencil, X, Save } from 'lucide-react';
+import {  ChevronDown, Globe, Settings, LogOut, MessageSquare, ChevronLeft, Search, Clock, Trash2, Menu, CheckCircle2, User, Building2, MapPin, Pencil, X, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { TypewriterMessage } from '../components/TypewriterMessage';
-import { checkApiHealth } from '../lib/api';
+import { checkApiHealth ,getarticles,gettopicid} from '../lib/api';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -28,6 +28,7 @@ interface UserProfile {
 
 export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+
   const [input, setInput] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedSource, setSelectedSource] = useState('all');
@@ -38,6 +39,9 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [articledata , setArticleData] = useState([])
+  const[articles , setArticles] = useState(false)
+  const [fetchText , setFetchText] = useState("Fetch Response")
   const [editedProfile, setEditedProfile] = useState({
     institute: '',
     country: ''
@@ -55,6 +59,35 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    console.log("hello")
+    const checkHealth = async () => {
+      try {
+        const isHealthy = await checkApiHealth();   
+        
+        if (isHealthy) {
+          setIsApiHealthy(true)
+          toast.success('Connected to AI service', {
+            duration: 3000,
+            icon: '🟢',
+          });
+        } else {
+          toast.error('Unable to connect to AI service', {
+            duration: 5000,
+            icon: '🔴',
+          });
+        }
+        setIsCheckingHealth(false)
+      } catch (error) {
+        console.error('Health check error:', error);
+        setIsApiHealthy(false);
+      }
+    };
+
+    // Initial health check
+    checkHealth();
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -98,36 +131,10 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
   }, []);
 
   useEffect(() => {
-    const checkHealth = async () => {
-      setIsCheckingHealth(true);
-      try {
-        const isHealthy = await checkApiHealth();
-        setIsApiHealthy(isHealthy);
-        
-        if (isHealthy) {
-          toast.success('Connected to AI service', {
-            duration: 3000,
-            icon: '🟢',
-          });
-        } else {
-          toast.error('Unable to connect to AI service', {
-            duration: 5000,
-            icon: '🔴',
-          });
-        }
-      } catch (error) {
-        console.error('Health check error:', error);
-        setIsApiHealthy(false);
-      } finally {
-        setIsCheckingHealth(false);
-      }
-    };
-
-    // Initial health check
-    checkHealth();
+   
 
     // Set up periodic health checks every 30 seconds
-    const healthCheckInterval = setInterval(checkHealth, 30000);
+    // const healthCheckInterval = setInterval(checkHealth, 30000);
 
     // Show welcome message
     if (messages.length === 0) {
@@ -145,10 +152,10 @@ I'm your research assistant, ready to help you explore and analyze scientific li
 What would you like to explore today?`,
         timestamp: new Date()
       };
-      setMessages([welcomeMessage]);
+      // setMessages([welcomeMessage]);
     }
 
-    return () => clearInterval(healthCheckInterval);
+    
   }, [messages.length]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -195,6 +202,26 @@ What would you like to explore today?`,
       country: userProfile?.country || ''
     });
   };
+
+ 
+  const handleFetchArticles = async() => {
+    const response = await gettopicid(input)
+    console.log(response)
+    console.log("in getart")
+    const topicId = response.topic_id;
+    console.log(topicId)
+    const timer = setTimeout(async() => {
+      const art = await getarticles(topicId)
+      console.log(art)
+     setFetchText("Generate")
+     setArticleData(art.articles)
+     setArticles(true)
+    }, 5000);
+
+    // const {topic_id} = response
+    
+  };
+  
 
   const handleSaveProfile = async () => {
     try {
@@ -489,6 +516,28 @@ What would you like to explore today?`,
           </div>
         </div>
 
+        <div>
+          {articledata?.map((article, index) => ( 
+//           <div className="max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
+    
+//         <h5 className="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Noteworthy technology acquisitions 2021</h5>
+   
+//     <p className="mb-3 font-normal text-gray-700 dark:text-gray-400">Here are the biggest enterprise technology acquisitions of 2021 so far, in reverse chronological order.</p>
+//     <button  className="inline-flex items-center px-3 py-2 text-sm font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800" />
+//         Read more
+//         <svg className="rtl:rotate-180 w-3.5 h-3.5 ms-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
+//             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1 5h12m0 0L9 1m4 4L9 9"/>
+//         </svg>
+   
+// </div>
+<div>
+hello
+</div>
+          ))}
+
+        </div>
+
+
         {/* Chat Messages */}
         <div className={`flex-1 overflow-y-auto p-4 md:p-6 space-y-6 ${
           isDarkMode ? 'bg-[#1f1f1f]' : 'bg-gray-50'
@@ -626,6 +675,7 @@ What would you like to explore today?`,
               <motion.button
                 type="submit"
                 disabled={isSearching || !isApiHealthy}
+                onClick={handleFetchArticles}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className={`p-2.5 rounded-lg ${
@@ -636,7 +686,7 @@ What would you like to explore today?`,
                       : 'bg-purple-500 hover:bg-purple-600'
                 } text-white`}
               >
-                <Send className="w-5 h-5" />
+                {fetchText}
               </motion.button>
             </div>
           </form>

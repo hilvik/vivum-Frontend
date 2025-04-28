@@ -95,6 +95,72 @@ export const checkApiHealth = async (): Promise<boolean> => {
   }
 };
 
+export const gettopicid = async (topic: string): Promise<any[]> => {
+  try {
+    const response = await axios.post(
+      `https://ad-vivum-backend-production.up.railway.app/fetch-topic-data`,
+      {
+        topic: topic,
+        max_results: 5
+      },
+      
+      {
+        timeout: 5000,
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        }
+      }
+    );
+    
+
+    return response.data; // return the articles array
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.log(error)
+      console.error('Article Fetching failed', {
+        message: error.message,
+        url: error.config?.url,
+        method: error.config?.method,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+    } else {
+      console.error('Unexpected error during article fetching:', error);
+    }
+    return []; // return empty array if error
+  }
+};
+
+export const getarticles = async (topic: string) => {
+  try {
+    const response = await axios.get(
+      `https://ad-vivum-backend-production.up.railway.app/topic/${topic}/articles`,
+      
+      {
+        timeout: 5000,
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        }
+      }
+    );
+    return response; // return the articles array
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.log(error)
+      console.error('Article Fetching failed', {
+        message: error.message,
+        url: error.config?.url,
+        method: error.config?.method,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+    } else {
+      console.error('Unexpected error during article fetching:', error);
+    }
+    return {}; // return empty array if error
+  }
+};
+
 // Submit a query using Supabase URL
 export const submitQuery = async (query: string): Promise<string> => {
   try {

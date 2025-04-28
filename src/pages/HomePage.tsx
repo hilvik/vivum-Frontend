@@ -28,7 +28,7 @@ function FeatureCard({ icon, title, description, isDarkMode, delay }) {
       }}
     >
       <motion.div 
-        className="mb-3 inline-block p-2 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/10"
+        className="mb-3  inline-block p-2 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/10"
         whileHover={{ scale: 1.1, rotate: 5 }}
         transition={{ type: "spring", stiffness: 400, damping: 10 }}
       >
@@ -125,7 +125,7 @@ export function HomePage({ isDarkMode, setIsDarkMode }: HomePageProps) {
           <div className="flex items-center space-x-3">
             <motion.button
               onClick={() => navigate('/activate')}
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-medium rounded-lg shadow-lg hover:shadow-purple-500/25 transition-all duration-200"
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-serif rounded-lg shadow-lg hover:shadow-purple-500/25 transition-all duration-200"
               whileHover={{ scale: 1.02, boxShadow: "0 0 20px rgba(147, 51, 234, 0.3)" }}
               whileTap={{ scale: 0.98 }}
             >
@@ -173,7 +173,7 @@ export function HomePage({ isDarkMode, setIsDarkMode }: HomePageProps) {
               }}
             />
             <motion.div 
-              className={`absolute bottom-0 right-20 w-32 h-32 rounded-full ${
+              className={`absolute  bottom-0 right-20 w-32 h-36 rounded-full ${
                 isDarkMode ? 'bg-pink-600/20' : 'bg-pink-200/50'
               } blur-xl`}
               animate={{ 
@@ -189,13 +189,13 @@ export function HomePage({ isDarkMode, setIsDarkMode }: HomePageProps) {
             />
 
             <motion.h1 
-              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-8 sm:mb-10 leading-[1.1] max-w-6xl mx-auto px-4"
+              className="text-5xl sm:text-5xl md:text-6xl lg:text-6xl font-serif  leading-[1.1] max-w-6xl mx-auto px-4"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
               <motion.span
-                className="inline-block bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 text-transparent bg-clip-text"
+                className={isDarkMode?`inline-block bg-white text-transparent bg-clip-text`:'bg-black inline-block text-transparent bg-clip-text'}
                 animate={{
                   backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
                 }}
@@ -206,11 +206,11 @@ export function HomePage({ isDarkMode, setIsDarkMode }: HomePageProps) {
                 }}
                 style={{ backgroundSize: "200% 200%" }}
               >
-                Take a Leap to Discover.
+                Take a Leap to Discovey.
               </motion.span>
               <br className="hidden sm:block" />
               <motion.span
-                className="inline-block bg-gradient-to-r from-pink-600 via-purple-600 to-pink-600 text-transparent bg-clip-text"
+                className={`inline-block ${isDarkMode?'bg-white':'bg-black'} font-serif mb-8 text-transparent bg-clip-text`}
                 animate={{
                   backgroundPosition: ["100% 50%", "0% 50%", "100% 50%"],
                 }}
@@ -250,7 +250,7 @@ export function HomePage({ isDarkMode, setIsDarkMode }: HomePageProps) {
               />
 
               <motion.p 
-                className={`relative text-2xl sm:text-3xl lg:text-4xl font-semibold leading-relaxed ${
+                className={`relative text-2xl sm:text-3xl lg:text-3xl  leading-relaxed ${
                   isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}
                 initial={{ opacity: 0, y: 20 }}
@@ -286,7 +286,7 @@ export function HomePage({ isDarkMode, setIsDarkMode }: HomePageProps) {
                     ease: "linear"
                   }}
                 >
-                  with real-time, citation-anchored AI
+                  with the first real-time, citation-anchored AI agent
                 </motion.span>
               </motion.p>
             </motion.div>
@@ -302,6 +302,84 @@ export function HomePage({ isDarkMode, setIsDarkMode }: HomePageProps) {
               No more manual and time-consuming literature searches—Vivum brings it quickly at your fingertips. 
               Get instant access to real-time data from PubMed, Scopus, and beyond.
             </motion.p>
+          </motion.div>
+
+          <motion.div
+            className={`max-w-6xl h-72 mx-auto text-center p-8 sm:p-10 rounded-2xl ${
+              isDarkMode ? 'bg-gradient-to-r from-purple-900/30 to-pink-900/30' : 'bg-gradient-to-r from-purple-50 to-pink-50'
+            } backdrop-blur-sm mb-16 border ${isDarkMode ? 'border-purple-800/30' : 'border-purple-100'}`}
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            whileHover={{ scale: 1.02 }}
+          >
+            <motion.div 
+              className="flex items-center justify-center space-x-3 mb-4"
+              animate={{ 
+                scale: [1, 1.05, 1],
+                rotate: [0, 2, -2, 0]
+              }}
+              transition={{ 
+                duration: 3,
+                repeat: Infinity,
+                repeatType: "reverse"
+              }}
+            >
+              <motion.div
+                animate={{ 
+                  rotate: [0, 360],
+                  scale: [1, 1.2, 1]
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "linear"
+                }}
+              >
+                <Rocket className={`w-10 h-10 ${isDarkMode ? 'text-purple-400' : 'text-purple-500'}`} />
+              </motion.div>
+              <span className={`text-3xl font-display font-bold ${
+                isDarkMode ? 'text-purple-400' : 'text-purple-600'
+              }`}>
+                Coming Soon
+              </span>
+              <motion.div
+                animate={{ 
+                  rotate: [0, -360],
+                  scale: [1, 1.2, 1]
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "linear"
+                }}
+              >
+                <Sparkles className={`w-10 h-10 ${isDarkMode ? 'text-purple-400' : 'text-purple-500'}`} />
+              </motion.div>
+            </motion.div>
+            <motion.p 
+              className={` text-xl ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              } leading-relaxed mb-5`}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+            >
+              Join our waitlist to be among the first to experience
+              <br className="hidden sm:block" />
+              the future of research and discovery
+            </motion.p>
+            <motion.button
+              onClick={handleJoinWaitlist}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="inline-flex items-center px-12 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xl rounded-lg font-medium shadow-lg hover:shadow-purple-500/25 transition-all duration-200"
+            >
+              Join the Waitlist
+              <ArrowRight className="ml-2 w-4 h-4" />
+            </motion.button>
           </motion.div>
 
           <motion.div
@@ -465,7 +543,7 @@ export function HomePage({ isDarkMode, setIsDarkMode }: HomePageProps) {
             </div>
           </motion.section>
 
-          <motion.div
+          {/* <motion.div
             className={`max-w-4xl mx-auto text-center p-8 sm:p-10 rounded-2xl ${
               isDarkMode ? 'bg-gradient-to-r from-purple-900/30 to-pink-900/30' : 'bg-gradient-to-r from-purple-50 to-pink-50'
             } backdrop-blur-sm mb-16 border ${isDarkMode ? 'border-purple-800/30' : 'border-purple-100'}`}
@@ -541,7 +619,7 @@ export function HomePage({ isDarkMode, setIsDarkMode }: HomePageProps) {
               Join the Waitlist
               <ArrowRight className="ml-2 w-4 h-4" />
             </motion.button>
-          </motion.div>
+          </motion.div> */}
         </div>
       </main>
 

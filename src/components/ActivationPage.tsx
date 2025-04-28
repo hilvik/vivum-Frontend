@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Fingerprint, X, Mail, Lock, Building2, Globe2, User, AlertCircle, Check } from 'lucide-react';
+import { Fingerprint, Send, ChevronDown, Globe, Settings, LogOut, MessageSquare, ChevronLeft, Search, Clock, Trash2, Menu, CheckCircle2, X, Mail, Lock, Building2, Globe2, User, AlertCircle, Check } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Dialog, Combobox } from '@headlessui/react';
 import toast from 'react-hot-toast';
@@ -683,7 +683,6 @@ export function ActivationPage({ isDarkMode }: ActivationPageProps) {
                       placeholder="Confirm your password"
                     />
                   </div>
-                
                 </div>
               )}
 

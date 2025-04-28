@@ -1,1 +1,2 @@
-export { ActivationPage } from '../components/ActivationPage';
+import { ActivationPage } from '../components/ActivationPage';
+export { ActivationPage };

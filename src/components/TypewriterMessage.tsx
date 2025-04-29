@@ -20,25 +20,24 @@ export function TypewriterMessage({ content, isDarkMode, onComplete }: Typewrite
     setIsTyping(true);
     setDisplayedContent('');
     
-    // Split content into paragraphs
-    const paragraphs = content.split('\n').filter(Boolean);
+    // Split content into sentences
+    const sentences = content.match(/[^.!?]+[.!?]+|\s*\n\s*|\s*```[\s\S]*?```\s*|\s*`[^`]*`\s*/g) || [];
     let currentIndex = 0;
     
-    const typeNextParagraph = () => {
-      if (currentIndex < paragraphs.length) {
-        setDisplayedContent(prev => {
-          const newContent = prev + (prev ? '\n' : '') + paragraphs[currentIndex];
-          return newContent;
-        });
+    const typeNextSentence = () => {
+      if (currentIndex < sentences.length) {
+        setDisplayedContent(prev => prev + sentences[currentIndex]);
         currentIndex++;
-        timeoutRef.current = setTimeout(typeNextParagraph, 100);
+        // Adjust timing based on sentence length and type
+        const delay = sentences[currentIndex - 1].includes('```') ? 100 : 50;
+        timeoutRef.current = setTimeout(typeNextSentence, delay);
       } else {
         setIsTyping(false);
         onComplete?.();
       }
     };
 
-    timeoutRef.current = setTimeout(typeNextParagraph, 100);
+    timeoutRef.current = setTimeout(typeNextSentence, 50);
 
     return () => {
       if (timeoutRef.current) {
@@ -71,6 +70,11 @@ export function TypewriterMessage({ content, isDarkMode, onComplete }: Typewrite
                 {children}
               </h2>
             ),
+            h3: ({ children }) => (
+              <h3 className={`text-lg font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {children}
+              </h3>
+            ),
             p: ({ children }) => (
               <p className={`mb-4 leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 {children}
@@ -80,6 +84,11 @@ export function TypewriterMessage({ content, isDarkMode, onComplete }: Typewrite
               <strong className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {children}
               </strong>
+            ),
+            em: ({ children }) => (
+              <em className={`italic ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                {children}
+              </em>
             ),
             a: ({ href, children }) => (
               <a
@@ -100,6 +109,11 @@ export function TypewriterMessage({ content, isDarkMode, onComplete }: Typewrite
                 {children}
               </ul>
             ),
+            ol: ({ children }) => (
+              <ol className="list-decimal list-inside mb-4 space-y-2">
+                {children}
+              </ol>
+            ),
             li: ({ children }) => (
               <li className={`${isDarkMode ? 'text-gray-300' : 'text-gray-700'} ml-4`}>
                 {children}
@@ -112,16 +126,62 @@ export function TypewriterMessage({ content, isDarkMode, onComplete }: Typewrite
                   style={atomDark}
                   language={match[1]}
                   PreTag="div"
+                  className="rounded-lg my-4"
+                  customStyle={{
+                    margin: '1rem 0',
+                    padding: '1rem',
+                    borderRadius: '0.5rem',
+                  }}
                   {...props}
                 >
                   {String(children).replace(/\n$/, '')}
                 </SyntaxHighlighter>
               ) : (
-                <code className={`${isDarkMode ? 'text-purple-300' : 'text-purple-600'} bg-opacity-10 rounded px-1`} {...props}>
+                <code className={`${
+                  isDarkMode 
+                    ? 'text-purple-300 bg-gray-800' 
+                    : 'text-purple-600 bg-gray-100'
+                } px-1.5 py-0.5 rounded font-mono text-sm`} {...props}>
                   {children}
                 </code>
               );
             },
+            blockquote: ({ children }) => (
+              <blockquote className={`border-l-4 ${
+                isDarkMode 
+                  ? 'border-gray-700 bg-gray-800/50' 
+                  : 'border-gray-200 bg-gray-50'
+              } pl-4 py-2 mb-4 rounded italic`}>
+                {children}
+              </blockquote>
+            ),
+            table: ({ children }) => (
+              <div className="overflow-x-auto mb-4">
+                <table className={`min-w-full border ${
+                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
+                  {children}
+                </table>
+              </div>
+            ),
+            th: ({ children }) => (
+              <th className={`px-4 py-2 ${
+                isDarkMode 
+                  ? 'bg-gray-800 border-gray-700' 
+                  : 'bg-gray-100 border-gray-200'
+              } border font-semibold text-left`}>
+                {children}
+              </th>
+            ),
+            td: ({ children }) => (
+              <td className={`px-4 py-2 ${
+                isDarkMode 
+                  ? 'border-gray-700' 
+                  : 'border-gray-200'
+              } border`}>
+                {children}
+              </td>
+            ),
           }}
         >
           {displayedContent}

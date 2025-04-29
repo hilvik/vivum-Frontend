@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ChevronDown, Globe, Settings, LogOut, MessageSquare, ChevronLeft, Search, Clock, Trash2, Menu, CheckCircle2, User, Building2, MapPin, Pencil, X, Save } from 'lucide-react';
+import { ChevronDown, Globe, Settings, LogOut, MessageSquare, ChevronLeft, Search, Clock, Trash2, Menu, CheckCircle2, User, Building2, MapPin, Pencil, X, Save, Send, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { TypewriterMessage } from '../components/TypewriterMessage';
-import { checkApiHealth } from '../lib/api';
+import { checkApiHealth, getarticles, gettopicid, checkTopicStatus, generateResponse } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -38,6 +38,13 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [articleData, setArticleData] = useState([]);
+  const [fetchText, setFetchText] = useState("Fetch Articles");
+  const [currentTopicId, setCurrentTopicId] = useState<string | null>(null);
+  const [isGeneratingResponse, setIsGeneratingResponse] = useState(false);
+  const [showSourcesPopup, setShowSourcesPopup] = useState(false);
+  const [hasAskedFirstQuery, setHasAskedFirstQuery] = useState(false);
+  const [visibleArticles, setVisibleArticles] = useState(0);
   const [editedProfile, setEditedProfile] = useState({
     institute: '',
     country: ''
@@ -59,6 +66,33 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const isHealthy = await checkApiHealth();   
+        
+        if (isHealthy) {
+          setIsApiHealthy(true);
+          toast.success('Connected to AI service', {
+            duration: 3000,
+            icon: '🟢',
+          });
+        } else {
+          toast.error('Unable to connect to AI service', {
+            duration: 5000,
+            icon: '🔴',
+          });
+        }
+        setIsCheckingHealth(false);
+      } catch (error) {
+        console.error('Health check error:', error);
+        setIsApiHealthy(false);
+      }
+    };
+
+    checkHealth();
+  }, []);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -86,87 +120,164 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
     fetchUserProfile();
   }, [navigate]);
 
+  // Effect to animate articles appearing one by one
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
-        setIsProfileOpen(false);
-      }
-    };
+    if (articleData.length > 0 && visibleArticles < articleData.length) {
+      const timer = setTimeout(() => {
+        setVisibleArticles(prev => prev + 1);
+      }, 200); // Adjust timing as needed
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+      return () => clearTimeout(timer);
+    }
+  }, [articleData, visibleArticles]);
 
+  // Reset visible articles when new articles are loaded
   useEffect(() => {
-    const checkHealth = async () => {
-      setIsCheckingHealth(true);
-      try {
-        const isHealthy = await checkApiHealth();
-        setIsApiHealthy(isHealthy);
-        
-        if (isHealthy) {
-          toast.success('Connected to AI service', {
-            duration: 3000,
-            icon: '🟢',
-          });
-        } else {
-          toast.error('Unable to connect to AI service', {
-            duration: 5000,
-            icon: '🔴',
-          });
-        }
-      } catch (error) {
-        console.error('Health check error:', error);
-        setIsApiHealthy(false);
-      } finally {
-        setIsCheckingHealth(false);
+    setVisibleArticles(0);
+    if (articleData.length > 0) {
+      setVisibleArticles(1); // Start showing the first article
+    }
+  }, [articleData]);
+
+  const pollTopicStatus = async (topicId: string) => {
+    let attempts = 0;
+    const maxAttempts = 10;
+    const pollInterval = 5000; // 5 seconds
+
+    while (attempts < maxAttempts) {
+      const { status, error } = await checkTopicStatus(topicId);
+      
+      if (error) {
+        toast.error(error);
+        return false;
       }
-    };
 
-    // Initial health check
-    checkHealth();
+      if (status === 'completed') {
+        return true;
+      }
 
-    // Set up periodic health checks every 30 seconds
-    const healthCheckInterval = setInterval(checkHealth, 30000);
+      if (status === 'error') {
+        toast.error('Error processing topic');
+        return false;
+      }
 
-    // Show welcome message
-    if (messages.length === 0) {
-      const welcomeMessage: ChatMessage = {
-        role: 'assistant',
-        content: `# Hello, Welcome to Vivum AI 👋
-
-I'm your research assistant, ready to help you explore and analyze scientific literature. You can ask me about:
-
-- **Research Papers**: Find and analyze papers from PubMed, Scopus, and other databases
-- **Literature Reviews**: Get comprehensive overviews of specific topics
-- **Clinical Trials**: Stay updated on the latest medical research
-- **Data Analysis**: Extract insights from research findings
-
-What would you like to explore today?`,
-        timestamp: new Date()
-      };
-      setMessages([welcomeMessage]);
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      attempts++;
     }
 
-    return () => clearInterval(healthCheckInterval);
-  }, [messages.length]);
+    toast.error('Topic processing timed out');
+    return false;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
 
     if (!isApiHealthy) {
-      toast.error('AI service is currently unavailable', {
-        duration: 5000,
-        icon: '🔌',
-      });
+      toast.error('AI service is currently unavailable');
       return;
     }
 
-    toast.error('The query feature is currently under maintenance. Please try again later.', {
-      duration: 5000,
-      icon: '🔧',
-    });
+    if (!currentTopicId) {
+      toast.error('Please fetch articles first');
+      return;
+    }
+
+    if (!hasAskedFirstQuery) {
+      setHasAskedFirstQuery(true);
+    }
+
+    setMessages(prev => [...prev, { 
+      role: 'user', 
+      content: input, 
+      timestamp: new Date() 
+    }]);
+
+    setIsGeneratingResponse(true);
+
+    try {
+      const { response, error } = await generateResponse(currentTopicId, input);
+
+      if (error) {
+        toast.error(error);
+        return;
+      }
+
+      if (response) {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: response,
+          timestamp: new Date()
+        }]);
+      }
+    } catch (error) {
+      toast.error('Failed to generate response');
+      console.error('Error generating response:', error);
+    } finally {
+      setIsGeneratingResponse(false);
+      setInput('');
+    }
+  };
+
+  const handleFetchArticles = async () => {
+    if (!input.trim()) {
+      toast.error('Please enter a topic to search for');
+      return;
+    }
+
+    setIsSearching(true);
+    setFetchText("Fetching...");
+
+    try {
+      const { topic_id, error: topicError } = await gettopicid(input);
+      
+      if (topicError) {
+        toast.error(topicError);
+        return;
+      }
+
+      if (!topic_id) {
+        toast.error('No topic ID returned from server');
+        return;
+      }
+
+      setCurrentTopicId(topic_id);
+
+      // Wait for 5 seconds before checking status
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      const isCompleted = await pollTopicStatus(topic_id);
+      
+      if (!isCompleted) {
+        return;
+      }
+
+      const { articles, error: articlesError } = await getarticles(topic_id);
+      
+      if (articlesError) {
+        toast.error(articlesError);
+        return;
+      }
+
+      if (articles && articles.length > 0) {
+        setArticleData(articles);
+        setMessages(prev => [...prev, {
+          role: 'user',
+          content: `Search for articles about: ${input}`,
+          timestamp: new Date()
+        }]);
+        toast.success(`Found ${articles.length} articles. Ask me anything about them!`);
+      } else {
+        toast.error('No articles found for this topic');
+      }
+    } catch (error) {
+      toast.error('Failed to fetch articles');
+      console.error('Error fetching articles:', error);
+    } finally {
+      setIsSearching(false);
+      setFetchText("Fetch Articles");
+      setInput(''); // Clear input after fetching
+    }
   };
 
   const handleLogout = async () => {
@@ -522,30 +633,70 @@ What would you like to explore today?`,
               </div>
             </motion.div>
           ))}
-          {isSearching && (
+
+          {/* Articles Display - Only show before first query */}
+          {!hasAskedFirstQuery && articleData.slice(0, visibleArticles).map((article: any, index: number) => (
             <motion.div
+              key={index}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex justify-center max-w-4xl mx-auto"
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5, delay: index * 0.2 }}
+              className={`p-6 rounded-xl ${
+                isDarkMode ? 'bg-gray-800' : 'bg-white'
+              } shadow-lg max-w-4xl mx-auto`}
             >
-              <div className={`w-full rounded-xl p-4 ${
-                isDarkMode
-                  ? 'bg-[#2a2a2a] text-white'
-                  : 'bg-white text-gray-900'
+              <h3 className={`text-xl font-semibold mb-3 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
-                <div className="flex items-center space-x-3">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full"
-                  />
-                  <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
-                    Analyzing research papers...
-                  </span>
-                </div>
+                {article.title}
+              </h3>
+              {article.authors && (
+                <p className={`text-sm mb-2 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  Authors: {article.authors}
+                </p>
+              )}
+              {article.abstract && (
+                <p className={`text-sm mb-4 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  {article.abstract}
+                </p>
+              )}
+              <div className="flex items-center space-x-4">
+                {article.pubmed_id && (
+                  <a
+                    href={`https://pubmed.ncbi.nlm.nih.gov/${article.pubmed_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`text-sm font-medium ${
+                      isDarkMode 
+                        ? 'text-purple-400 hover:text-purple-300' 
+                        : 'text-purple-600 hover:text-purple-500'
+                    }`}
+                  >
+                    View on PubMed
+                  </a>
+                )}
+                {article.url && (
+                  <a
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`text-sm font-medium ${
+                      isDarkMode 
+                        ? 'text-purple-400 hover:text-purple-300' 
+                        : 'text-purple-600 hover:text-purple-500'
+                    }`}
+                  >
+                    View Article
+                  </a>
+                )}
               </div>
             </motion.div>
-          )}
+          ))}
           <div ref={messagesEndRef} />
         </div>
 
@@ -555,66 +706,29 @@ What would you like to explore today?`,
             <div className={`flex items-center space-x-2 p-2 rounded-2xl ${
               isDarkMode ? 'bg-[#2a2a2a]' : 'bg-gray-100'
             }`}>
-              <div className="relative flex-shrink-0">
-                <button
+              {hasAskedFirstQuery && articleData.length > 0 && (
+                <motion.button
                   type="button"
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  onClick={() => setShowSourcesPopup(true)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   className={`flex items-center space-x-2 px-3 py-2 rounded-lg ${
                     isDarkMode 
-                      ? 'hover:bg-gray-700 text-gray-300' 
-                      : 'hover:bg-gray-200 text-gray-700'
+                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                   }`}
                 >
-                  <span>{sources.find(s => s.value === selectedSource)?.label || 'All Sources'}</span>
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-
-                <AnimatePresence>
-                  {isDropdownOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className={`absolute bottom-full mb-2 w-48 rounded-lg shadow-lg ${
-                        isDarkMode ? 'bg-gray-800' : 'bg-white'
-                      } border ${
-                        isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                      }`}
-                    >
-                      {sources.map((source) => (
-                        <button
-                          key={source.value}
-                          type="button"
-                          onClick={() => {
-                            setSelectedSource(source.value);
-                            setIsDropdownOpen(false);
-                          }}
-                          className={`w-full text-left px-4 py-2 first:rounded-t-lg last:rounded-b-lg ${
-                            isDarkMode 
-                              ? 'hover:bg-gray-700' 
-                              : 'hover:bg-gray-100'
-                          } ${
-                            selectedSource === source.value
-                              ? isDarkMode 
-                                ? 'bg-gray-700' 
-                                : 'bg-gray-100'
-                              : ''
-                          }`}
-                        >
-                          {source.label}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                  <BookOpen className="w-4 h-4" />
+                  <span className="text-sm">Sources</span>
+                </motion.button>
+              )}
 
               <div className="relative flex-1">
                 <input
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask anything..."
+                  placeholder={articleData.length > 0 ? "Ask me anything about these articles..." : "Enter a research topic..."}
                   className={`w-full px-4 py-3 rounded-xl ${
                     isDarkMode 
                       ? 'bg-transparent text-white placeholder-gray-400' 
@@ -623,24 +737,150 @@ What would you like to explore today?`,
                 />
               </div>
 
-              <motion.button
-                type="submit"
-                disabled={isSearching || !isApiHealthy}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`p-2.5 rounded-lg ${
-                  !isApiHealthy || isSearching
-                    ? 'bg-gray-700 cursor-not-allowed'
-                    : isDarkMode
-                      ? 'bg-purple-500 hover:bg-purple-600'
-                      : 'bg-purple-500 hover:bg-purple-600'
-                } text-white`}
-              >
-                <Send className="w-5 h-5" />
-              </motion.button>
+              {articleData.length === 0 ? (
+                <motion.button
+                  type="button"
+                  onClick={handleFetchArticles}
+                  disabled={isSearching || !isApiHealthy}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`px-4 py-2.5 rounded-lg ${
+                    !isApiHealthy || isSearching
+                      ? 'bg-gray-700 cursor-not-allowed'
+                      : isDarkMode
+                        ? 'bg-purple-500 hover:bg-purple-600'
+                        : 'bg-purple-500 hover:bg-purple-600'
+                  } text-white font-medium`}
+                >
+                  {fetchText}
+                </motion.button>
+              ) : (
+                <motion.button
+                  type="submit"
+                  disabled={!input.trim() || isGeneratingResponse || !isApiHealthy}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`p-3 rounded-lg ${
+                    !input.trim() || !isApiHealthy || isGeneratingResponse
+                      ? 'bg-gray-700 cursor-not-allowed'
+                      : isDarkMode
+                        ? 'bg-purple-500 hover:bg-purple-600'
+                        : 'bg-purple-500 hover:bg-purple-600'
+                  } text-white`}
+                >
+                  <Send className="w-5 h-5" />
+                </motion.button>
+              )}
             </div>
           </form>
         </div>
+
+        {/* Sources Popup */}
+        <AnimatePresence>
+          {showSourcesPopup && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setShowSourcesPopup(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                onClick={e => e.stopPropagation()}
+                className={`w-full max-w-3xl max-h-[80vh] overflow-y-auto rounded-xl shadow-xl ${
+                  isDarkMode ? 'bg-gray-900' : 'bg-white'
+                } p-6`}
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className={`text-xl font-semibold ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    Source Articles
+                  </h3>
+                  <button
+                    onClick={() => setShowSourcesPopup(false)}
+                    className={`p-2 rounded-lg ${
+                      isDarkMode 
+                        ? 'hover:bg-gray-800 text-gray-400' 
+                        : 'hover:bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  {articleData.map((article: any, index: number) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className={`p-4 rounded-lg border ${
+                        isDarkMode 
+                          ? 'bg-gray-800 border-gray-700' 
+                          : 'bg-white border-gray-200'
+                      }`}
+                    >
+                      <h4 className={`text-lg font-medium mb-2 ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        {article.title}
+                      </h4>
+                      {article.authors && (
+                        <p className={`text-sm mb-2 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                          Authors: {article.authors}
+                        </p>
+                      )}
+                      {article.abstract && (
+                        <p className={`text-sm mb-4 ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
+                          {article.abstract}
+                        </p>
+                      )}
+                      <div className="flex items-center space-x-4">
+                        {article.pubmed_id && (
+                          <a
+                            href={`https://pubmed.ncbi.nlm.nih.gov/${article.pubmed_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`text-sm font-medium ${
+                              isDarkMode 
+                                ? 'text-purple-400 hover:text-purple-300' 
+                                : 'text-purple-600 hover:text-purple-500'
+                            }`}
+                          >
+                            View on PubMed
+                          </a>
+                        )}
+                        {article.url && (
+                          <a
+                            href={article.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`text-sm font-medium ${
+                              isDarkMode 
+                                ? 'text-purple-400 hover:text-purple-300' 
+                                : 'text-purple-600 hover:text-purple-500'
+                            }`}
+                          >
+                            View Article
+                          </a>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

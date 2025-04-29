@@ -206,7 +206,7 @@ export function HomePage({ isDarkMode, setIsDarkMode }: HomePageProps) {
                 }}
                 style={{ backgroundSize: "200% 200%" }}
               >
-                Take a Leap to Discovey.
+                Take a Leap to Discover.
               </motion.span>
               <br className="hidden sm:block" />
               <motion.span

@@ -8,6 +8,13 @@ if (!API_BASE_URL) {
   console.error('VITE_SUPABASE_URL is not defined in environment variables');
 }
 
+// Extend AxiosRequestConfig to include retryCount
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    retryCount?: number;
+  }
+}
+
 // Create a basic axios instance
 const api = axios.create({
   headers: {
@@ -93,6 +100,56 @@ export const checkApiHealth = async (): Promise<boolean> => {
       console.error('Unexpected error during health check:', error);
     }
     return false;
+  }
+};
+
+export const checkTopicStatus = async (topic_id: string): Promise<{ status: string; error?: string }> => {
+  if (!topic_id) {
+    return { status: 'error', error: 'No topic ID provided' };
+  }
+
+  try {
+    const response = await axios.get(
+      `${BACKEND_URL}/topic/${topic_id}/status`,
+      {
+        timeout: 5000,
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        }
+      }
+    );
+
+    if (!response.data) {
+      return { status: 'error', error: 'No status data received' };
+    }
+
+    return { status: response.data.status || 'pending' };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error('Status check failed:', {
+        message: error.message,
+        url: error.config?.url,
+        method: error.config?.method,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+
+      if (error.code === 'ECONNABORTED') {
+        return { status: 'error', error: 'Status check timed out' };
+      }
+
+      if (error.response) {
+        switch (error.response.status) {
+          case 404:
+            return { status: 'error', error: 'Topic not found' };
+          case 500:
+            return { status: 'error', error: 'Server error checking status' };
+          default:
+            return { status: 'error', error: 'Failed to check topic status' };
+        }
+      }
+    }
+    return { status: 'error', error: 'Unexpected error checking status' };
   }
 };
 
@@ -209,6 +266,82 @@ export const getarticles = async (topic_id: string) => {
       };
     }
     return { articles: [], error: 'Unexpected error occurred' };
+  }
+};
+
+interface GenerateResponseResult {
+  response: string;
+  conversation_id?: string;
+  error?: string;
+}
+
+export const generateResponse = async (topic_id: string, query?: string): Promise<GenerateResponseResult> => {
+  if (!topic_id) {
+    return { response: '', error: 'No topic ID provided' };
+  }
+
+  try {
+    const response = await axios.post(
+      `${BACKEND_URL}/query`,
+      { 
+        query: query || 'Analyze these articles and provide a comprehensive summary.',
+        topic_id: topic_id
+      },
+      {
+        timeout: 30000,
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      }
+    );
+
+    if (!response.data) {
+      return { response: '', error: 'No response data received' };
+    }
+
+    return { 
+      response: response.data.response || '',
+      conversation_id: response.data.conversation_id
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error('Generate response failed:', {
+        message: error.message,
+        url: error.config?.url,
+        method: error.config?.method,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+
+      if (error.code === 'ECONNABORTED') {
+        return { response: '', error: 'Request timed out - please try again' };
+      }
+
+      if (error.response) {
+        switch (error.response.status) {
+          case 401:
+            return { response: '', error: 'Authentication failed' };
+          case 404:
+            return { response: '', error: 'Query endpoint not found' };
+          case 429:
+            return { response: '', error: 'Too many requests - please try again later' };
+          case 500:
+            return { response: '', error: 'Backend server error - please try again later' };
+          default:
+            return { 
+              response: '', 
+              error: error.response.data?.message || 'Failed to generate response' 
+            };
+        }
+      }
+      return { 
+        response: '', 
+        error: 'Network error - please check your connection' 
+      };
+    }
+    return { response: '', error: 'An unexpected error occurred' };
   }
 };
 

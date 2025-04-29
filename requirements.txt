@@ -1,0 +1,56 @@
+# Vivum Research Platform Requirements
+
+## Core Dependencies
+- Node.js >= 18.0.0
+- npm >= 9.0.0
+
+## Frontend Framework
+- React 18.3.1
+- React DOM 18.3.1
+- React Router DOM 6.22.2
+- TypeScript 5.5.3
+
+## UI/UX
+- Tailwind CSS 3.4.1
+- Framer Motion 11.0.8
+- Lucide React 0.344.0
+- React Hot Toast 2.4.1
+- React Markdown 9.0.1
+- React Syntax Highlighter 15.5.0
+- React Type Animation 3.2.0
+- @headlessui/react 1.7.18
+
+## Backend/Database
+- Supabase JS Client 2.39.3
+- Axios 1.6.7
+
+## Development Tools
+- Vite 5.4.2
+- ESLint 9.9.1
+- PostCSS 8.4.35
+- Autoprefixer 10.4.18
+
+## Environment
+- Node.js runtime in WebContainer
+- In-browser development environment
+- Git version control (optional for local development)
+
+## Browser Support
+- Modern browsers (Chrome, Firefox, Safari, Edge)
+- ES2020+ JavaScript features
+
+## Authentication
+- Email/Password authentication via Supabase
+- Password reset functionality
+- Session management
+
+## Database Requirements
+- PostgreSQL (via Supabase)
+- Row Level Security (RLS) enabled
+- User profiles table
+- Waitlist management table
+
+## Deployment
+- Static site hosting capability
+- Environment variables management
+- Build optimization support

@@ -275,7 +275,7 @@ interface GenerateResponseResult {
   error?: string;
 }
 
-export const generateResponse = async (topic_id: string, query?: string): Promise<GenerateResponseResult> => {
+export const generateResponse = async (topic_id: string, query?: string, conversation_id?:string): Promise<GenerateResponseResult> => {
   if (!topic_id) {
     return { response: '', error: 'No topic ID provided' };
   }
@@ -285,7 +285,8 @@ export const generateResponse = async (topic_id: string, query?: string): Promis
       `${BACKEND_URL}/query`,
       { 
         query: query || 'Analyze these articles and provide a comprehensive summary.',
-        topic_id: topic_id
+        topic_id: topic_id,
+        conversation_id:conversation_id
       },
       {
         timeout: 30000,

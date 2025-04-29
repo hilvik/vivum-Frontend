@@ -44,6 +44,7 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
   const [isGeneratingResponse, setIsGeneratingResponse] = useState(false);
   const [showSourcesPopup, setShowSourcesPopup] = useState(false);
   const [hasAskedFirstQuery, setHasAskedFirstQuery] = useState(false);
+  const [conversationid , setConversationId] = useState("null");
   const [visibleArticles, setVisibleArticles] = useState(0);
   const [editedProfile, setEditedProfile] = useState({
     institute: '',
@@ -196,26 +197,26 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
     setIsGeneratingResponse(true);
 
     try {
-      const { response, error } = await generateResponse(currentTopicId, input);
+      setInput("");
+      console.log(currentTopicId, input,conversationid)
+      const { response, conversation_id } = await generateResponse(currentTopicId, input,conversationid);
 
-      if (error) {
-        toast.error(error);
-        return;
-      }
 
       if (response) {
+        console.log(response)
+        console.log(conversation_id)
         setMessages(prev => [...prev, {
           role: 'assistant',
           content: response,
           timestamp: new Date()
         }]);
+        setConversationId(conversation_id)
+        setIsGeneratingResponse(false);
+        
       }
     } catch (error) {
       toast.error('Failed to generate response');
       console.error('Error generating response:', error);
-    } finally {
-      setIsGeneratingResponse(false);
-      setInput('');
     }
   };
 
@@ -260,6 +261,7 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
       }
 
       if (articles && articles.length > 0) {
+        console.log(articles)
         setArticleData(articles);
         setMessages(prev => [...prev, {
           role: 'user',

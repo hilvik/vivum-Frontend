@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Globe, Settings, LogOut, MessageSquare, ChevronLeft, Search, Clock, Trash2, Menu, CheckCircle2, User, Building2, MapPin, Pencil, X, Save, Send, BookOpen } from 'lucide-react';
+import { ChevronDown, Globe, Settings, LogOut, MessageSquare, ChevronLeft, Search, Clock, Trash2, Menu, CheckCircle2, User, Building2, MapPin, Pencil, X, Save, Send, BookOpen, SlidersHorizontal } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { TypewriterMessage } from '../components/TypewriterMessage';
@@ -44,8 +44,11 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
   const [isGeneratingResponse, setIsGeneratingResponse] = useState(false);
   const [showSourcesPopup, setShowSourcesPopup] = useState(false);
   const [hasAskedFirstQuery, setHasAskedFirstQuery] = useState(false);
-  const [conversationid , setConversationId] = useState("null");
+  const [conversationid, setConversationId] = useState("null");
   const [visibleArticles, setVisibleArticles] = useState(0);
+  const [showArticleFilter, setShowArticleFilter] = useState(false);
+  const [articleCount, setArticleCount] = useState(5);
+  const [showFilterTooltip, setShowFilterTooltip] = useState(true);
   const [editedProfile, setEditedProfile] = useState({
     institute: '',
     country: ''
@@ -59,6 +62,14 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
     { value: 'pubmed', label: 'PubMed' },
     { value: 'scopus', label: 'Scopus' },
   ];
+
+  useEffect(() => {
+    const tooltipTimer = setTimeout(() => {
+      setShowFilterTooltip(false);
+    }, 5000);
+
+    return () => clearTimeout(tooltipTimer);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -121,29 +132,27 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
     fetchUserProfile();
   }, [navigate]);
 
-  // Effect to animate articles appearing one by one
   useEffect(() => {
     if (articleData.length > 0 && visibleArticles < articleData.length) {
       const timer = setTimeout(() => {
         setVisibleArticles(prev => prev + 1);
-      }, 200); // Adjust timing as needed
+      }, 200);
 
       return () => clearTimeout(timer);
     }
   }, [articleData, visibleArticles]);
 
-  // Reset visible articles when new articles are loaded
   useEffect(() => {
     setVisibleArticles(0);
     if (articleData.length > 0) {
-      setVisibleArticles(1); // Start showing the first article
+      setVisibleArticles(1);
     }
   }, [articleData]);
 
   const pollTopicStatus = async (topicId: string) => {
     let attempts = 0;
     const maxAttempts = 10;
-    const pollInterval = 5000; // 5 seconds
+    const pollInterval = 5000;
 
     while (attempts < maxAttempts) {
       const { status, error } = await checkTopicStatus(topicId);
@@ -198,21 +207,16 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
 
     try {
       setInput("");
-      console.log(currentTopicId, input,conversationid)
-      const { response, conversation_id } = await generateResponse(currentTopicId, input,conversationid);
-
+      const { response, conversation_id } = await generateResponse(currentTopicId, input, conversationid);
 
       if (response) {
-        console.log(response)
-        console.log(conversation_id)
         setMessages(prev => [...prev, {
           role: 'assistant',
           content: response,
           timestamp: new Date()
         }]);
-        setConversationId(conversation_id)
+        setConversationId(conversation_id);
         setIsGeneratingResponse(false);
-        
       }
     } catch (error) {
       toast.error('Failed to generate response');
@@ -230,7 +234,7 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
     setFetchText("Fetching...");
 
     try {
-      const { topic_id, error: topicError } = await gettopicid(input);
+      const { topic_id, error: topicError } = await gettopicid(input, articleCount);
       
       if (topicError) {
         toast.error(topicError);
@@ -244,7 +248,6 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
 
       setCurrentTopicId(topic_id);
 
-      // Wait for 5 seconds before checking status
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       const isCompleted = await pollTopicStatus(topic_id);
@@ -261,7 +264,6 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
       }
 
       if (articles && articles.length > 0) {
-        console.log(articles)
         setArticleData(articles);
         setMessages(prev => [...prev, {
           role: 'user',
@@ -278,7 +280,7 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
     } finally {
       setIsSearching(false);
       setFetchText("Fetch Articles");
-      setInput(''); // Clear input after fetching
+      setInput('');
     }
   };
 
@@ -344,7 +346,6 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
 
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-[#1f1f1f] text-white' : 'bg-white text-gray-900'}`}>
-      {/* Sidebar */}
       <motion.div
         initial={{ width: isSidebarOpen ? 320 : 0 }}
         animate={{ width: isSidebarOpen ? 320 : 0 }}
@@ -366,14 +367,11 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
             </button>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {/* Chat history items */}
           </div>
         </div>
       </motion.div>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
         <div className={`flex items-center justify-between px-4 md:px-6 py-4 ${
           isDarkMode ? 'bg-[#1f1f1f]' : 'bg-white'
         } border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
@@ -422,7 +420,6 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
               <ThemeToggle isDarkMode={isDarkMode} onToggle={() => setIsDarkMode(!isDarkMode)} />
             )}
             
-            {/* Profile Section */}
             <div className="relative" ref={profileRef}>
               <motion.button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -602,7 +599,6 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
           </div>
         </div>
 
-        {/* Chat Messages */}
         <div className={`flex-1 overflow-y-auto p-4 md:p-6 space-y-6 ${
           isDarkMode ? 'bg-[#1f1f1f]' : 'bg-gray-50'
         }`}>
@@ -636,7 +632,6 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
             </motion.div>
           ))}
 
-          {/* Articles Display - Only show before first query */}
           {!hasAskedFirstQuery && articleData.slice(0, visibleArticles).map((article: any, index: number) => (
             <motion.div
               key={index}
@@ -702,7 +697,6 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
         <div className={`p-4 ${isDarkMode ? 'bg-[#1f1f1f]' : 'bg-white'}`}>
           <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
             <div className={`flex items-center space-x-2 p-2 rounded-2xl ${
@@ -726,12 +720,48 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
               )}
 
               <div className="relative flex-1">
+                {articleData.length === 0 && (
+                  <div className="relative">
+                    <motion.button
+                      type="button"
+                      onClick={() => setShowArticleFilter(true)}
+                      className={`absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-lg ${
+                        isDarkMode 
+                          ? 'hover:bg-gray-700 text-gray-400' 
+                          : 'hover:bg-gray-200 text-gray-600'
+                      }`}
+                    >
+                      <SlidersHorizontal className="w-4 h-4" />
+                    </motion.button>
+                    
+                    {showFilterTooltip && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className={`absolute left-0 bottom-full mb-2 px-3 py-2 rounded-lg text-sm ${
+                          isDarkMode 
+                            ? 'bg-gray-800 text-gray-200' 
+                            : 'bg-white text-gray-700'
+                        } shadow-lg border ${
+                          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                        } whitespace-nowrap`}
+                      >
+                        Select number of articles
+                        <div className={`absolute bottom-0 left-4 transform translate-y-1/2 rotate-45 w-2 h-2 ${
+                          isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                        } border-r border-b`}></div>
+                      </motion.div>
+                    )}
+                  </div>
+                )}
+                
                 <input
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder={articleData.length > 0 ? "Ask me anything about these articles..." : "Enter a research topic..."}
-                  className={`w-full px-4 py-3 rounded-xl ${
+                  className={`w-full ${articleData.length === 0 ? 'pl-12' : 'pl-4'} pr-4 py-3 rounded-xl ${
                     isDarkMode 
                       ? 'bg-transparent text-white placeholder-gray-400' 
                       : 'bg-transparent text-gray-900 placeholder-gray-500'
@@ -777,8 +807,104 @@ export function ChatInterface({ isDarkMode, setIsDarkMode }: ChatInterfaceProps)
           </form>
         </div>
 
-        {/* Sources Popup */}
         <AnimatePresence>
+          {showArticleFilter && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setShowArticleFilter(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                onClick={e => e.stopPropagation()}
+                className={`w-full max-w-md rounded-xl shadow-xl ${
+                  isDarkMode ? 'bg-gray-900' : 'bg-white'
+                } p-6`}
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className={`text-xl font-semibold ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    Number of Articles
+                  </h3>
+                  <button
+                    onClick={() => setShowArticleFilter(false)}
+                    className={`p-2 rounded-lg ${
+                      isDarkMode 
+                        ? 'hover:bg-gray-800 text-gray-400' 
+                        : 'hover:bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  <div className={`text-center text-3xl font-semibold ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    {articleCount}
+                  </div>
+
+                  <div className="flex items-center justify-center space-x-4">
+                    <button
+                      onClick={() => setArticleCount(prev => Math.max(5, prev - 1))}
+                      className={`p-2 rounded-lg ${
+                        isDarkMode 
+                          ? 'hover:bg-gray-800 text-gray-400' 
+                          : 'hover:bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      -
+                    </button>
+                    
+                    <input
+                      type="range"
+                      min="5"
+                      max="25"
+                      value={articleCount}
+                      onChange={(e) => setArticleCount(parseInt(e.target.value))}
+                      className="w-48 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    />
+                    
+                    <button
+                      onClick={() => setArticleCount(prev => Math.min(25, prev + 1))}
+                      className={`p-2 rounded-lg ${
+                        isDarkMode 
+                          ? 'hover:bg-gray-800 text-gray-400' 
+                          : 'hover:bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <div className="flex justify-between text-sm">
+                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+                      Min: 5
+                    </span>
+                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+                      Max: 25
+                    </span>
+                  </div>
+
+                  <motion.button
+                    onClick={() => setShowArticleFilter(false)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors font-medium"
+                  >
+                    Confirm
+                  </motion.button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+
           {showSourcesPopup && (
             <motion.div
               initial={{ opacity: 0 }}

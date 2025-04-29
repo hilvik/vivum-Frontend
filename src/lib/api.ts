@@ -153,7 +153,7 @@ export const checkTopicStatus = async (topic_id: string): Promise<{ status: stri
   }
 };
 
-export const gettopicid = async (topic: string): Promise<{ topic_id: string; error?: string }> => {
+export const gettopicid = async (topic: string, maxResults: number = 5): Promise<{ topic_id: string; error?: string }> => {
   if (!topic) {
     return { topic_id: '', error: 'No topic provided' };
   }
@@ -177,7 +177,7 @@ export const gettopicid = async (topic: string): Promise<{ topic_id: string; err
       `${BACKEND_URL}/fetch-topic-data`,
       {
         topic: topic,
-        max_results: 5
+        max_results: maxResults
       },
       {
         timeout: 10000, // Increased timeout for topic processing
